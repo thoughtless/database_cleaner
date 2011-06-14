@@ -8,7 +8,7 @@ module DatabaseCleaner
     def self.available_strategies
       %w[truncation transaction deletion]
     end
-    
+
     def self.config_file_location=(path)
       @config_file_location = path
     end
@@ -21,6 +21,15 @@ module DatabaseCleaner
       include ::DatabaseCleaner::Generic::Base
 
       attr_accessor :connection_hash
+
+      def model=(desired_model)
+        @model = desired_model.respond_to?(:constantize) ? desired_model.constantize : desired_model
+        @connection_klass = @model
+      end
+
+      def model
+        @model
+      end
 
       def db=(desired_db)
         @db = desired_db
@@ -43,10 +52,12 @@ module DatabaseCleaner
       end
 
       def connection_klass
-        return ::ActiveRecord::Base if connection_hash.nil?
-        klass = create_connection_klass
-        klass.send :establish_connection, connection_hash
-        klass
+        @connection_klass ||= begin
+          return ::ActiveRecord::Base if connection_hash.nil?
+          klass create_connection_klass
+          klass.send :establish_connection, connection_hash
+          klass
+        end
       end
     end
   end

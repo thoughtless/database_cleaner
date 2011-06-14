@@ -9,6 +9,7 @@ module DatabaseCleaner
         self.orm = desired_orm
       end
       self.db = opts[:connection] if opts.has_key? :connection
+      self.model = opts[:model] if opts.has_key? :model
       set_default_orm_strategy
     end
 
@@ -18,15 +19,24 @@ module DatabaseCleaner
     end
 
     def strategy_db=(desired_db)
-      if strategy.respond_to? :db=
-        strategy.db = desired_db
-      elsif desired_db!= :default
-        raise ArgumentError, "You must provide a strategy object that supports non default databases when you specify a database"
-      end
+      set_db_on_strategy(strategy, desired_db)
     end
 
     def db
       @db || :default
+    end
+
+    def model=(desired_model)
+       self.strategy_model = desired_model
+       @model = desired_model
+    end
+
+    def strategy_model=(desired_model)
+      set_model_on_strategy(strategy, desired_model)
+    end
+
+    def model
+      @model
     end
 
     def create_strategy(*args)
@@ -36,6 +46,8 @@ module DatabaseCleaner
 
     def clean_with(*args)
       strategy = create_strategy(*args)
+      set_db_on_strategy(strategy, db)
+      set_model_on_strategy(strategy, model)
       strategy.clean
       strategy
     end
@@ -53,6 +65,7 @@ module DatabaseCleaner
        end
 
        self.strategy_db = self.db
+       self.strategy_model = self.model
 
        @strategy
     end
@@ -85,7 +98,7 @@ module DatabaseCleaner
 
     #TODO make strategies directly comparable
     def ==(other)
-      self.orm == other.orm && self.db == other.db && self.strategy.class == other.strategy.class
+      self.orm == other.orm && self.model == other.model && self.db == other.db && self.strategy.class == other.strategy.class
     end
 
     private
@@ -132,6 +145,22 @@ module DatabaseCleaner
         self.strategy = :transaction
       when :mongo_mapper, :mongoid, :couch_potato
         self.strategy = :truncation
+      end
+    end
+
+    def set_db_on_strategy(strategy, db)
+      if strategy.respond_to? :db=
+        strategy.db = db
+      elsif db!= :default
+        raise ArgumentError, "You must provide a strategy object that supports non default databases when you specify a database"
+      end
+    end
+
+    def set_model_on_strategy(strategy, model)
+      if strategy.respond_to? :model=
+        strategy.model = model
+      elsif model != nil
+        raise ArgumentError, "You must provide a strategy object that supports specifying database attributes with a model/class when you specify a model. #{strategy.inspect} does not respond to :model="
       end
     end
   end
